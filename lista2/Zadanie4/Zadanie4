@@ -1,0 +1,1 @@
+ps -f | grep bash | tr [:lower:] [:upper:] | sed 's/SH/MBUMBAMBIM/' | cat

@@ -1,0 +1,177 @@
+#!/bin.sh
+cd /proc;
+
+array1=(0 0 0 0 0 0 0 0);
+array2=(0 0 0 0 0 0 0 0);
+array3=(0 0 0 0 0 0 0 0);
+length=${#array1[@]};
+
+clear;
+
+start=`cat diskstats | grep sda1`;
+start_read=`echo $start | awk '{print $6}' | cat`;
+start_read=$((start_read*512/1024)); #sectors read from start in B/s
+start_write=`echo $start | awk '{print $10}' | cat`;
+start_write=$((start_write*512/1024)); #sectors written from start in B/s
+
+start_loadavg=`cat loadavg`;
+start_loadavg_1min=`echo $start_loadavg | awk '{print $1}' | cat`;
+
+echo "sectors read                sectors written                  load avg";
+
+while true
+do
+	a=`cat diskstats | grep sda1`;
+	b=`echo $a | awk '{print $6}' | cat`;
+	b=$((b*512/1024)); #last read measurement
+	c=`echo $a | awk '{print $10}' | cat`;
+	c=$((c*512/1024)); #last write measurement
+
+	d=`cat loadavg`;
+	e=`echo $d | awk '{print $1}' | cat`;
+
+	for i in {1..7}
+	do
+		t=i-1;
+		array1[t]=${array1[i]};
+		array2[t]=${array2[i]};
+		array3[t]=${array3[i]};
+	done
+
+	array1[${length}-1]=$((b-start_read));
+	array2[${length}-1]=$((c-start_write));
+	array3[${length}-1]=$(bc <<< "scale=4; $e-$start_loadavg_1min");
+
+	start=$a;
+	start_read=$b;
+	start_write=$c;
+	start_loadavg=$e;
+
+	max1=${array1[0]};
+	max2=${array2[0]};
+	max3=${array3[0]};
+	min1=${array1[0]};
+	min2=${array2[0]};
+	min3=${array3[0]};
+
+	for i in {0..7}
+	do
+		if ((${array1[i]} > $max1));
+		then
+			max1=${array1[i]};
+		fi
+
+		if ((${array1[i]} < $min1));
+		then
+			min1=${array1[i]};
+		fi
+
+		if ((${array2[i]} > $max2));
+		then
+			max2=${array2[i]};
+		fi
+
+		if ((${array2[i]} < $min2));
+		then
+			min2=${array2[i]};
+		fi
+
+		if (( $(echo "${array3[i]} > $max3" | bc -l) ));
+		then
+			max3=${array3[i]};
+		fi
+
+		if (( $(echo "${array3[i]} < $min3" | bc -l) ));
+		then
+			max3=${array3[i]};
+		fi
+	done
+
+	row_length=20;
+
+	for i in {0..7}
+	do
+		for((j=0;j<row_length;j++))
+		do
+			tput cup $((i+1)) $j;
+			echo ".";
+			tput cup $((i+1)) $((j+25));
+			echo ".";
+			tput cup $((i+1)) $((j+55));
+			echo ".";
+		done
+	done
+
+	for i in {0..7}
+	do
+		for((j=$row_length;j<row_length+4;j++))
+		do
+			tput cup $((i+1)) $j;
+			echo " ";
+			tput cup $((i+1)) $((j+25));
+			echo " ";
+			tput cup $((i+1)) $((j+55));
+			echo " ";
+		done
+	done
+
+	scl1=$max1;
+	scl2=$max2;
+	scl3=$max3;
+
+	if [ $scl1 -eq "0" ]
+	then
+		scl1=1;
+	fi
+
+	if [ $scl2 -eq "0" ]
+	then
+		scl2=1;
+	fi
+
+	if (( $(echo "$scl3 == 0" | bc -l) ))
+	then
+		scl3=1;
+	fi
+
+	for i in {0..7}
+	do
+		var1=$(bc <<< "scale=2; ${array1[i]}/$scl1");
+		howmany1=$(bc <<< "scale=2; $var1*$row_length");
+		integer1=`echo "($howmany1+0.5)/1" | bc`;
+
+		var2=$(bc <<< "scale=2; ${array2[i]}/$scl2");
+		howmany2=$(bc <<< "scale=2; $var2*$row_length");
+		integer2=`echo "($howmany2+0.5)/1" | bc`;
+
+		var3=$(bc <<< "scale=4; ${array3[i]}/$scl3");
+		howmany3=$(bc <<< "scale=4; $var3*$row_length");
+		integer3=`echo "($howmany3+0.5)/1" | bc`;
+
+		for((j=0;j<integer1;j++))
+		do
+			tput cup $((i+1)) $j;
+			echo "=";
+		done
+		tput cup $((i+1)) $((row_length+1));
+		echo ${array1[i]};
+
+		for((j=0;j<integer2;j++))
+		do
+			tput cup $((i+1)) $((j+25));
+			echo "=";
+		done
+		tput cup $((i+1)) $((row_length * 2 + 7));
+		echo ${array2[i]};
+
+		for((j=0;j<integer3;j++))
+		do
+			tput cup $((i+1)) $((j+55));
+			echo "=";
+		done
+		tput cup $((i+1)) $((row_length * 3 + 16));
+		echo ${array3[i]};
+	done
+
+	sleep 1;
+done

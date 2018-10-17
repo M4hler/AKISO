@@ -1,0 +1,6 @@
+#!/bin/sh
+curl -s `curl -s http://thecatapi.com/api/images/get?format=xml | xmllint -
+ | grep '<url' | cut -f2 -d">" | cut -f1 -d"<"` > photo;
+img2txt -W 200 photo;
+curl -s http://api.icndb.com/jokes/random | jq .value.joke;
+rm photo;

@@ -1,0 +1,10 @@
+#!bin/sh
+cd /proc;
+for i in `ls | grep '[0-9]'`
+do
+	cd $i;
+	echo "`cat status | grep Name`, `cat status | grep State`, $i";
+	cd fd;
+	echo "`ls -l | wc -l`";
+	cd /proc;
+done
